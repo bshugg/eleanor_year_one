@@ -1,0 +1,1 @@
+This project will attempt visualize the data of Eleanor Fern Watssman's first year in an aesthetically pleasing manner.
