@@ -7,6 +7,7 @@
 # * define color pallets (ask J & A)
 # * make alternative formats for y-axis ticks (e.g. "Nov 2" instead of YYYY-MM-DD)
 
+# imports
 import datetime as dt
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,6 +16,10 @@ import pandas as pd
 import time
 import util
 
+# constants
+BIRTHDAY = dt.date(2022, 11, 2)
+BIRTHDAY_DT = dt.datetime(BIRTHDAY.year, BIRTHDAY.month, BIRTHDAY.day)
+SECONDS_PER_HOUR = 60 * 60
 EVENT_COLOR_DICT = {
     'sleep': 'black',
     'feed': 'limegreen',
@@ -28,9 +33,6 @@ EVENT_COLOR_DICT = {
     'indoor play': 'purple',
     'outdoor play': 'magenta'
 }
-BIRTHDAY = dt.date(2022, 11, 2)
-BIRTHDAY_DT = dt.datetime(BIRTHDAY.year, BIRTHDAY.month, BIRTHDAY.day)
-SECONDS_PER_HOUR = 60 * 60
 
 # %%
 DF_ORIG = util.load_data()
