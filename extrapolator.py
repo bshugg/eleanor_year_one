@@ -11,11 +11,11 @@ def get_dict_of_other_columns():
 
 
 def format_extrapolation(start, end, event_type='sleep'):
-    return [{**{'type': event_type, 'start': start, 'end': end}, **get_dict_of_other_columns()}]
+    return {**{'type': event_type, 'start': start, 'end': end}, **get_dict_of_other_columns()}
 
 
 def add_birth_event(df):
-    return combine_extrapolations_with_dataframe(df, format_extrapolation(constants.BIRTHDAY_AND_TIME, constants.BIRTHDAY_AND_TIME, type='birth'))
+    return combine_extrapolations_with_dataframe(df, [format_extrapolation(constants.BIRTHDAY_AND_TIME, constants.BIRTHDAY_AND_TIME, event_type='birth')])
 
 
 def combine_extrapolations_with_dataframe(df, extrapolations):
@@ -31,6 +31,7 @@ def extrapolate(df):
     - sleeping events during the day (naps), which are not recorded from 2022-11-02 to 2022-12-23 (inclusive).
         These are interspersed between all other recorded events on those days (given enough space to do so)
     """
+    df = add_birth_event(df)
     extrapolations = []
     for d in sorted(df['date'].unique()):
         ddf = df[df['date'] == d].sort_values('start')
