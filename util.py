@@ -44,7 +44,7 @@ def convert_num_seconds_to_time_of_day(t):
     return time.strftime('%H:%M', time.gmtime(t))
 
 
-def process_raw_data(df, time_unit='seconds', minimum_duration=0.0):
+def process_raw_data(df):
     """Processes the raw input data and performs transformations including:
     * renaming all columns to be fully lowercase
     * removing event types that will not be plotted
@@ -102,7 +102,10 @@ def process_raw_data(df, time_unit='seconds', minimum_duration=0.0):
         for old_col, new_col in new_column_name_dict.items():
             column_dict[old_col] = new_col
         event_column_dict[event_type] = column_dict
+    return df, event_column_dict
 
+
+def split_multi_day_events(df):
     # split up entries that occur over two days (i.e. starts before midnight and ends after midnight)
     # for example: if an event lasts from 2023-07-01 23:55:00 -> 2023-07-02 00:10:00
     #  then it will be split into two new events with identical rows where
@@ -126,9 +129,20 @@ def process_raw_data(df, time_unit='seconds', minimum_duration=0.0):
     df = df.drop(rows_to_drop)
     # now that each event occurs on the same calendar date, add a "date" column
     df = df.assign(date=df['start'].apply(lambda d: my_date_conversion(d).date()))
+    return df
 
-    # calculate a better duration column, since "duration" in the original data is used for multiple purposes.
-    # The old "duration" column has already been renamed "legacy_duration"
+
+def enhance_duration_column(df, time_unit='seconds', minimum_duration=0.0):
+    """Calculate a better duration column, since "duration" in the original data is used for
+    multiple purposes. The old "duration" column has already been renamed "legacy_duration".
+
+    :param df: pandas.DataFrame containing raw data
+    :param time_unit: str, unit of time to return the duration column in. May be "seconds",
+        "minutes", "hours"
+    :param minimum_duration: float, if an event has a duration of 0, it will be replaced with this
+        duration value (in the time_unit provided)
+    :return: df - processed data
+    """
     time_unit = 'seconds'
     if time_unit == 'seconds':
         time_scale = 1.0
@@ -139,12 +153,4 @@ def process_raw_data(df, time_unit='seconds', minimum_duration=0.0):
     df = df.assign(duration=(df['end'] - df['start']).apply(
         lambda d: (minimum_duration if d.seconds == 0.0 else d.seconds) / time_scale
     ))
-    
-    # re-order columns
-    df = df[[
-        'type', 'start', 'end', 'date', 'duration', 'start condition',
-        'start location', 'end condition', 'notes', 'legacy_duration'
-    ]]
-    # sort
-    df = df.sort_values('start')
-    return df, event_column_dict
+    return df
