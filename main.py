@@ -21,6 +21,7 @@ import util
 BIRTHDAY = dt.date(2022, 11, 2)
 BIRTHDAY_DT = dt.datetime(BIRTHDAY.year, BIRTHDAY.month, BIRTHDAY.day)
 SECONDS_PER_HOUR = 60 * 60
+HOURS_PER_DAY = 24
 EVENT_COLOR_DICT = {
     'sleep': 'black',
     'feed': 'limegreen',
@@ -46,7 +47,7 @@ NUM_WEEKS_TO_PLOT = 52
 plot_date_filters = [BIRTHDAY_DT, BIRTHDAY_DT + dt.timedelta(days=7 * NUM_WEEKS_TO_PLOT)]
 
 # minimum and maximum hours of the day covered by the data. used to bound the plot
-min_hour = 24
+min_hour = HOURS_PER_DAY
 max_hour = 0
 
 # number of days to be included in a row
@@ -71,7 +72,7 @@ for ET in df['type'].unique():#['Sleep', 'Feed']:
         (df['type'] == ET)
     ].sort_values('start', ascending=False)
     edf = edf.rename(columns=event_column_dict[ET])  # TODO: maybe remove this?
-    if edf.shape[0] == 0:
+    if edf.shape[0] == 0:  # don't attempt to plot if there were no events of this type on this day
         continue
 
     for x in ['start', 'end']:
@@ -79,11 +80,13 @@ for ET in df['type'].unique():#['Sleep', 'Feed']:
         edf[f'{x}_time'] = (
             edf[x] - edf['start'].apply(lambda d: dt.datetime(d.year, d.month, d.day))
         ).apply(lambda d: d.seconds)
+
         # modify the start and end times to place multiple days on a row, by adding the number of
-        #  seconds in a day multiplied by the number of day it is in the row. For instance, if
-        #  we wanted to fit 7 days on a row, then we would add 7 * (24 * 60 * 60) seconds to the
-        #  times for each event on that day
-        edf[f'{x}_time'] += (edf['row_num'] * 60 * 60 * 24)
+        #  seconds in a day multiplied by the number of day it is in the row.
+        # For instance, if we wanted to fit 7 days on a row, then we would add a number of seconds
+        #  to the times for each event on that day that is equal to:
+        #   7 * the number of seconds in a day
+        edf[f'{x}_time'] += (edf['row_num'] * HOURS_PER_DAY * SECONDS_PER_HOUR)
 
     try:
         # TODO: change this to a conditional that pre-selects out the NaT values
@@ -119,7 +122,7 @@ tick_type = 'day_of_week'
 if tick_type == 'hour':
     if max_hour <= min_hour:  # last minute catch-all
         print(f'||| WARNING |||\nmax hour {max_hour} should be > min hour {min_hour}')
-        min_hour, max_hour = 0, 24
+        min_hour, max_hour = 0, HOURS_PER_DAY
     # hour_step_size = 1
     # hour_step_size = 3
     hour_step_size = 6
@@ -136,7 +139,7 @@ if tick_type == 'hour':
     ax.set_xticklabels(hour_tick_labels)
 elif tick_type == 'day_of_week':
     # this mode should only be used when PLOT_ROW_SIZE == 7
-    dow_ticks = list(range(0, 24 * PLOT_ROW_SIZE * SECONDS_PER_HOUR, 24 * SECONDS_PER_HOUR))
+    dow_ticks = list(range(0, HOURS_PER_DAY * PLOT_ROW_SIZE * SECONDS_PER_HOUR, HOURS_PER_DAY * SECONDS_PER_HOUR))
     # dow_tick_labels = ['Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue']
     dow_tick_labels = ['Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Monday', 'Tuesday']
     ax.set_xticks(dow_ticks)
