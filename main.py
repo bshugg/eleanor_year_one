@@ -46,6 +46,7 @@ df, event_column_dict = util.process_raw_data(df)
 artistic_liberties = [
     {'type': 'Birth', 'start': BIRTHDAY_AND_TIME, 'end': BIRTHDAY_AND_TIME},
 ]
+
 df = pd.concat([df, pd.DataFrame.from_records(artistic_liberties)])
 # %% further processing
 df = util.split_multi_day_events(df)
@@ -55,9 +56,6 @@ df = df[[
     'type', 'start', 'end', 'date', 'duration', 'start condition',
     'start location', 'end condition', 'notes', 'legacy_duration'
 ]].sort_values('start')
-
-# %% process raw data
-df, event_column_dict = util.process_raw_data(df, time_unit='seconds', minimum_duration=MINIMUM_DURATION)
 
 # %% plot prep
 BAR_HEIGHT = 0.8
@@ -88,7 +86,8 @@ for ET in df['type'].unique():#['Sleep', 'Feed']:
         (df['start'] < plot_date_filters[1]) &
         (df['type'] == ET)
     ].sort_values('start', ascending=False)
-    edf = edf.rename(columns=event_column_dict[ET])  # TODO: maybe remove this?
+    if ET in event_column_dict.keys():
+        edf = edf.rename(columns=event_column_dict[ET])  # TODO: maybe remove this?
     if edf.shape[0] == 0:  # don't attempt to plot if there were no events of this type on this day
         continue
 
