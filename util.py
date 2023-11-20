@@ -124,6 +124,8 @@ def process_raw_data(df, time_unit='seconds', minimum_duration=0.0):
     for row in rows_to_add:
         df.loc[df.shape[0]] = row
     df = df.drop(rows_to_drop)
+    # now that each event occurs on the same calendar date, add a "date" column
+    df = df.assign(date=df['start'].apply(lambda d: my_date_conversion(d).date()))
 
     # calculate a better duration column, since "duration" in the original data is used for multiple purposes.
     # The old "duration" column has already been renamed "legacy_duration"
@@ -137,4 +139,12 @@ def process_raw_data(df, time_unit='seconds', minimum_duration=0.0):
     df = df.assign(duration=(df['end'] - df['start']).apply(
         lambda d: (minimum_duration if d.seconds == 0.0 else d.seconds) / time_scale
     ))
-    return df.sort_values('start'), event_column_dict
+    
+    # re-order columns
+    df = df[[
+        'type', 'start', 'end', 'date', 'duration', 'start condition',
+        'start location', 'end condition', 'notes', 'legacy_duration'
+    ]]
+    # sort
+    df = df.sort_values('start')
+    return df, event_column_dict
