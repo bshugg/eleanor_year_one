@@ -7,6 +7,9 @@
 # * define color pallets (ask J & A)
 # * make alternative formats for y-axis ticks (e.g. "Nov 2" instead of YYYY-MM-DD)
 # * consider removing the min_hour/max_hour stuff
+# TODO (2023-11-20)
+# * save plots in NEW output folder
+# * share a version of plot with and without extrapolations with J&A
 
 # %% imports
 import datetime as dt
@@ -38,6 +41,7 @@ DF_ORIG = util.load_data()
 df = DF_ORIG.copy(deep=True)
 df, event_column_dict = util.process_raw_data(df)
 df = util.update_calculated_columns(df)
+df = util.split_multi_day_events(df)
 # extrapolate missing events
 df = extrapolator.extrapolate(df)
 # re-order columns and sort dataframe
@@ -48,12 +52,13 @@ df = df[[
 
 # %% plot prep
 BAR_HEIGHT = 0.8
-NUM_WEEKS_TO_PLOT = 8
+NUM_WEEKS_TO_PLOT = 16
 plot_date_filters = [constants.BIRTHDAY_DT, constants.BIRTHDAY_DT + dt.timedelta(days=7 * NUM_WEEKS_TO_PLOT)]
 # plot_date_filters = [
 #     constants.BIRTHDAY_DT + dt.timedelta(days=n),
 #     constants.BIRTHDAY_DT + dt.timedelta(days=n + 1)
 # ]
+# n += 1
 # date_range = sorted(df[(df['start'] >= plot_date_filters[0]) & (df['start'] < plot_date_filters[1])]['date'].unique())
 
 # minimum and maximum hours of the day covered by the data. used to bound the plot
@@ -132,6 +137,7 @@ if tick_type == 'day_of_week':
     if PLOT_ROW_SIZE != 7:
         print(f'WARNING: cannot plot days of week unless PLOT_ROW_SIZE == 7 (currently {PLOT_ROW_SIZE})')
         print('continuing and setting tick_type = "hour"')
+        tick_type = 'hour'
     dow_ticks = list(range(0, constants.HOURS_PER_DAY * PLOT_ROW_SIZE * constants.SECONDS_PER_HOUR, constants.HOURS_PER_DAY * constants.SECONDS_PER_HOUR))
     # dow_tick_labels = ['Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue']
     dow_tick_labels = ['Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Monday', 'Tuesday']
@@ -141,9 +147,6 @@ if tick_type == 'day_of_week':
     for day_start_time in dow_ticks:
         plt.axvline(x=day_start_time, color='k', linestyle=':')
 elif tick_type == 'hour':
-    if max_hour <= min_hour:  # last minute catch-all
-        print(f'||| WARNING |||\nmax hour {max_hour} should be > min hour {min_hour}')
-        min_hour, max_hour = 0, constants.HOURS_PER_DAY
     hour_step_size = 1
     # hour_step_size = 3
     # hour_step_size = 6
@@ -151,8 +154,7 @@ elif tick_type == 'hour':
     # hour_ticks = list(range(min_hour * 60 * 60, (max_hour + 1) * 60 * 60, 60 * 60))
     # hour_ticks = [*list(range(min_hour * 60 * 60, (max_hour + 1) * 60 * 60, 60 * 60))] * PLOT_ROW_SIZE
     hour_ticks = list(range(
-        min_hour * constants.SECONDS_PER_HOUR,
-        ((max_hour * PLOT_ROW_SIZE) + 1) * constants.SECONDS_PER_HOUR,
+        0, ((constants.HOURS_PER_DAY * PLOT_ROW_SIZE) + 1) * constants.SECONDS_PER_HOUR,
         hour_step_size * constants.SECONDS_PER_HOUR
     ))
     hour_tick_labels = [util.convert_num_seconds_to_time_of_day(x) for x in hour_ticks]
@@ -161,3 +163,4 @@ elif tick_type == 'hour':
 # plt.rcParams.update({'font.size': 12})
 plt.legend()
 plt.show()
+# %%
