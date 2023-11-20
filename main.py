@@ -6,6 +6,7 @@
 # * handle overlapping events in aesthetically pleasing way
 # * define color pallets (ask J & A)
 # * make alternative formats for y-axis ticks (e.g. "Nov 2" instead of YYYY-MM-DD)
+# * consider removing the min_hour/max_hour stuff
 
 # imports
 import datetime as dt
@@ -41,14 +42,8 @@ MINIMUM_DURATION = 5.0 * 60.0  # five minutes
 df, event_column_dict = util.process_raw_data(df, time_unit='seconds', minimum_duration=MINIMUM_DURATION)
 
 # %% plot prep
-NUM_WEEKS_TO_PLOT = 10
-plot_date_filters = [
-    BIRTHDAY_DT, BIRTHDAY_DT + dt.timedelta(days=7 * NUM_WEEKS_TO_PLOT)
-    # dt.datetime(2022, 11, 2), dt.datetime(2022, 12, 3)
-    # dt.datetime(2023, 1, 1),
-    # dt.datetime(2023, 1, 15)
-    # dt.datetime(2023, 6, 1)
-]
+NUM_WEEKS_TO_PLOT = 52
+plot_date_filters = [BIRTHDAY_DT, BIRTHDAY_DT + dt.timedelta(days=7 * NUM_WEEKS_TO_PLOT)]
 
 # minimum and maximum hours of the day covered by the data. used to bound the plot
 min_hour = 24
@@ -141,7 +136,7 @@ if tick_type == 'hour':
     ax.set_xticklabels(hour_tick_labels)
 elif tick_type == 'day_of_week':
     # this mode should only be used when PLOT_ROW_SIZE == 7
-    dow_ticks = list(range(0, ((24 * PLOT_ROW_SIZE) + 1) * SECONDS_PER_HOUR, 24 * SECONDS_PER_HOUR))
+    dow_ticks = list(range(0, 24 * PLOT_ROW_SIZE * SECONDS_PER_HOUR, 24 * SECONDS_PER_HOUR))
     # dow_tick_labels = ['Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue']
     dow_tick_labels = ['Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Monday', 'Tuesday']
     ax.set_xticks(dow_ticks)
