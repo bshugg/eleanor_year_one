@@ -7,8 +7,7 @@ import time
 
 def load_data():
     """Loads source data from local directory."""
-    data_path = os.getcwd() + "\9df3f148-2d4f-4286-b0db-cc3e0b180668.csv"
-    return pd.read_csv(data_path)
+    return pd.read_csv(os.getcwd() + "\9df3f148-2d4f-4286-b0db-cc3e0b180668.csv")
 
 
 def my_date_conversion(d):
@@ -48,7 +47,7 @@ def process_raw_data(df):
     """Processes the raw input data and performs transformations including:
     * renaming all columns to be fully lowercase
     * removing event types that will not be plotted
-    * 
+    * creating alternate column names for each event type, since some event types use the columns differently
 
     :param df: pandas.DataFrame containing raw data
     :param time_unit: str, unit of time to return the duration column in. May be "seconds",
@@ -70,7 +69,7 @@ def process_raw_data(df):
         ~df['type'].isin([
             # column(s) with very few entries
             # 'brush teeth', 'indoor play', 'outdoor play',
-            # column(s) that don't indicate Eleanor's actions
+            # column(s) that don't indicate the baby's actions
             'pump'
         ])
     ]
@@ -98,7 +97,7 @@ def process_raw_data(df):
         'tummy time': {},
     }
     event_column_dict = {}
-    default_dict = {c: c for c in df.columns.tolist()}#['type', 'start', 'end', 'legacy_duration', 'start condition', 'start location', 'end condition', 'notes']
+    default_dict = {c: c for c in df.columns.tolist()}
     for event_type in sorted(df['type'].unique()):
         column_dict = {**default_dict}
         new_column_name_dict = new_column_name_dict_list[event_type]
@@ -109,12 +108,14 @@ def process_raw_data(df):
 
 
 def split_multi_day_events(df):
-    # split up entries that occur over two days (i.e. starts before midnight and ends after midnight)
-    # for example: if an event lasts from 2023-07-01 23:55:00 -> 2023-07-02 00:10:00
-    #  then it will be split into two new events with identical rows where
-    #  one will last from 2023-07-01 23:55:00 -> 2023-07-01 23:59:59
-    #  and the other from 2023-07-02 00:00:00 -> 2023-07-02 00:10:00
-    #  Finally, the old row will be deleted.
+    """Split up entries that occur over two days (i.e. starts before midnight and ends after midnight).
+    For example: if an event lasts from
+        2023-07-01 23:55:00 -> 2023-07-02 00:10:00, 
+    then it will be split into two new events with identical rows where one will last from
+        2023-07-01 23:55:00 -> 2023-07-01 23:59:59
+    and the other from
+        2023-07-02 00:00:00 -> 2023-07-02 00:10:00
+    and finally, the old row will be deleted."""
     rows_to_drop = []
     rows_to_add = []
     for idx, row in df.iterrows():
@@ -126,16 +127,18 @@ def split_multi_day_events(df):
             rows_to_drop.append(idx)
             rows_to_add.append(row1)
             rows_to_add.append(row2)
-    # drop old rows, to prevent duplication
     for row in rows_to_add:
         df.loc[df.shape[0]] = row
+    # drop old rows, to prevent duplication
     df = df.drop(rows_to_drop)
     return df
+
 
 def calculate_date_column(df):
     if 'date' in df.columns:
         df = df.drop(columns=['date'])
     return df.assign(date=df['start'].apply(lambda d: my_date_conversion(d).date()))
+
 
 def calculate_time_columns(df):
     # calculate start/end time as seconds from midnight
@@ -145,7 +148,8 @@ def calculate_time_columns(df):
         ).apply(lambda d: d.seconds)
     return df
 
-def enhance_duration_column(df, time_unit='seconds', minimum_duration=0.0):
+
+def enhance_duration_column(df, time_unit='seconds', minimum_duration=300.0):
     """Calculate a better duration column, since "duration" in the original data is used for
     multiple purposes. The old "duration" column has already been renamed "legacy_duration".
 
@@ -153,7 +157,7 @@ def enhance_duration_column(df, time_unit='seconds', minimum_duration=0.0):
     :param time_unit: str, unit of time to return the duration column in. May be "seconds",
         "minutes", "hours"
     :param minimum_duration: float, if an event has a duration of 0, it will be replaced with this
-        duration value (in the time_unit provided)
+        duration value (in the time_unit provided). Default is 300 seconds (5 minutes)
     :return: df - processed data
     """
     if 'duration' in df.columns:
@@ -168,4 +172,10 @@ def enhance_duration_column(df, time_unit='seconds', minimum_duration=0.0):
     df = df.assign(duration=(df['end'] - df['start']).apply(
         lambda d: (minimum_duration if d.seconds == 0.0 else d.seconds) / time_scale
     ))
+    return df
+
+
+def update_calculated_columns(df):
+    for func in [calculate_date_column, calculate_time_columns, enhance_duration_column]:
+        df = func(df)
     return df
