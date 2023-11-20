@@ -15,13 +15,9 @@ import numpy as np
 import pandas as pd
 import time
 import util
+import constants
+import extrapolator
 
-# constants
-BIRTHDAY = dt.date(2022, 11, 2)
-BIRTHDAY_DT = dt.datetime(BIRTHDAY.year, BIRTHDAY.month, BIRTHDAY.day)
-BIRTHDAY_AND_TIME = dt.datetime(BIRTHDAY.year, BIRTHDAY.month, BIRTHDAY.day, 12, 48, 00)
-SECONDS_PER_HOUR = 60 * 60
-HOURS_PER_DAY = 24
 EVENT_COLOR_DICT = {
     'birth': 'gold',
     'sleep': 'black',
@@ -37,62 +33,13 @@ EVENT_COLOR_DICT = {
     'outdoor play': 'magenta'
 }
 
-# %% load data and process initial data
+# %% load and process raw data
 DF_ORIG = util.load_data()
 df = DF_ORIG.copy(deep=True)
-MINIMUM_DURATION = 5.0 * 60.0  # five minutes
 df, event_column_dict = util.process_raw_data(df)
-df = util.split_multi_day_events(df)
-df = util.calculate_date_column(df)
-df = util.calculate_time_columns(df)
-
-# %% fill in missing events with some artistic liberties
-other_columns = {'legacy_duration': np.nan, 'start_condition': np.nan, 'start_location': np.nan, 'end_condition': np.nan, 'notes': 'artistic liberty'}
-artistic_liberties = [{**{'type': 'birth', 'start': BIRTHDAY_AND_TIME, 'end': BIRTHDAY_AND_TIME}, **other_columns}]
-df = pd.concat([df, pd.DataFrame.from_records(artistic_liberties)])
-df = util.calculate_date_column(df)
-df = util.calculate_time_columns(df)
-
-
-# %%
-for d in sorted(df['date'].unique()):
-    ddf = df[df['date'] == d].sort_values('start')
-    if d < dt.date(2022, 12, 24):
-        # intersperse sleep events
-        # define threshold at which, if this many minutes are empty between events,
-        #  we want to add a sleep event
-        MINUTE_THRESHOLD = 15
-        MINUTE_BUFFER = 5
-        for idx in range(ddf.shape[0] - 1):
-            time_between_events = ddf.iloc[idx + 1]['start_time'] - ddf.iloc[idx]['end_time']
-            if time_between_events > MINUTE_THRESHOLD * 60:
-                artistic_liberties.append({**{
-                    'type': 'sleep',
-                    'start': ddf.iloc[idx]['end'] + dt.timedelta(minutes=MINUTE_BUFFER),
-                    'end': ddf.iloc[idx + 1]['start'] - dt.timedelta(minutes=MINUTE_BUFFER),
-                }, **other_columns})
-    # for every day, add "sleep" events at the beginning and end of the day
-    first_event = ddf['start'].min()
-    last_event = ddf['end'].max()
-    if not (first_event.hour == 0 and first_event.minute <= MINUTE_THRESHOLD) and d != BIRTHDAY:
-        artistic_liberties.append({**{
-            'type': 'sleep',
-            'start': dt.datetime(first_event.year, first_event.month, first_event.day, 0, 0, 0),
-            'end': dt.datetime(first_event.year, first_event.month, first_event.day, first_event.hour, first_event.minute, 0) - dt.timedelta(minutes=1),
-        }, **other_columns})
-    if not (last_event.hour == 23 and last_event.minute >= 60 - MINUTE_THRESHOLD):
-        artistic_liberties.append({**{
-            'type': 'sleep',
-            'start': dt.datetime(last_event.year, last_event.month, last_event.day, last_event.hour, last_event.minute, 0) + dt.timedelta(minutes=1),
-            'end': dt.datetime(last_event.year, last_event.month, last_event.day, 23, 59, 59),
-        }, **other_columns})
-# %%
-df = pd.concat([df, pd.DataFrame.from_records(artistic_liberties)])
-df = util.calculate_date_column(df)
-df = util.calculate_time_columns(df)
-
-# %% FINAL PROCESSING
-df = util.enhance_duration_column(df, time_unit='seconds', minimum_duration=MINIMUM_DURATION)
+df = util.update_calculated_columns(df)
+# extrapolate missing events
+df = extrapolator.extrapolate(df)
 # re-order columns and sort dataframe
 df = df[[
     'type', 'start', 'end', 'date', 'start_time', 'end_time', 'duration', 'start condition',
@@ -102,21 +49,21 @@ df = df[[
 # %% plot prep
 BAR_HEIGHT = 0.8
 NUM_WEEKS_TO_PLOT = 8
-plot_date_filters = [BIRTHDAY_DT, BIRTHDAY_DT + dt.timedelta(days=7 * NUM_WEEKS_TO_PLOT)]
+plot_date_filters = [constants.BIRTHDAY_DT, constants.BIRTHDAY_DT + dt.timedelta(days=7 * NUM_WEEKS_TO_PLOT)]
 # plot_date_filters = [
-#     BIRTHDAY_DT + dt.timedelta(days=n),
-#     BIRTHDAY_DT + dt.timedelta(days=n + 1)
+#     constants.BIRTHDAY_DT + dt.timedelta(days=n),
+#     constants.BIRTHDAY_DT + dt.timedelta(days=n + 1)
 # ]
 # date_range = sorted(df[(df['start'] >= plot_date_filters[0]) & (df['start'] < plot_date_filters[1])]['date'].unique())
 
 # minimum and maximum hours of the day covered by the data. used to bound the plot
-min_hour = HOURS_PER_DAY
+min_hour = constants.HOURS_PER_DAY
 max_hour = 0
 
 # number of days to be included in a row
 # PLOT_ROW_SIZE = 7
 PLOT_ROW_SIZE = 1
-df['days_from_bday'] = (df['date'] - BIRTHDAY).apply(lambda d: int(d.days))
+df['days_from_bday'] = (df['date'] - constants.BIRTHDAY).apply(lambda d: int(d.days))
 df['col_num'] = (df['days_from_bday'] / PLOT_ROW_SIZE).astype(int)
 df['row_num'] = df['days_from_bday'] - df['col_num'] * PLOT_ROW_SIZE
 # df[['date', 'days_from_bday', 'col_num', 'row_num']].drop_duplicates().head(20)
@@ -127,7 +74,8 @@ fig, ax = plt.subplots(
     figsize=(20, BAR_HEIGHT * 2 * NUM_WEEKS_TO_PLOT)
 )
 # for date in date_range:
-for ET in ['diaper', 'feed', 'sleep', 'birth', 'skin to skin', 'meds', 'bath', 'outdoor play', 'tummy time', 'indoor play', 'solids', 'brush teeth']:#df['type'].unique():
+for ET in ['diaper', 'feed', 'sleep', 'birth', 'skin to skin', 'meds', 'bath', 'outdoor play', 'tummy time', 'indoor play', 'solids', 'brush teeth']:
+# for ET in df['type'].unique():
     # define the "event data frame", used for plotting events of a certain color
     edf = df[
         # (df['date'] == date) &
@@ -144,9 +92,9 @@ for ET in ['diaper', 'feed', 'sleep', 'birth', 'skin to skin', 'meds', 'bath', '
         # modify the start and end times to place multiple days on a row, by adding the number of
         #  seconds in a day multiplied by the number of day it is in the row.
         # For instance, if we wanted to fit 7 days on a row, then we would add a number of seconds
-        #  to the times for each event on that day that is equal to:
+        #  to the start/end times for each event on that day that is equal to:
         #   7 * the number of seconds in a day
-        edf[f'{x}_time'] += (edf['row_num'] * HOURS_PER_DAY * SECONDS_PER_HOUR)
+        edf[f'{x}_time'] += (edf['row_num'] * constants.HOURS_PER_DAY * constants.SECONDS_PER_HOUR)
 
     try:
         # TODO: change this to a conditional that pre-selects out the NaT values
@@ -184,7 +132,7 @@ if tick_type == 'day_of_week':
     if PLOT_ROW_SIZE != 7:
         print(f'WARNING: cannot plot days of week unless PLOT_ROW_SIZE == 7 (currently {PLOT_ROW_SIZE})')
         print('continuing and setting tick_type = "hour"')
-    dow_ticks = list(range(0, HOURS_PER_DAY * PLOT_ROW_SIZE * SECONDS_PER_HOUR, HOURS_PER_DAY * SECONDS_PER_HOUR))
+    dow_ticks = list(range(0, constants.HOURS_PER_DAY * PLOT_ROW_SIZE * constants.SECONDS_PER_HOUR, constants.HOURS_PER_DAY * constants.SECONDS_PER_HOUR))
     # dow_tick_labels = ['Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue']
     dow_tick_labels = ['Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Monday', 'Tuesday']
     ax.set_xticks(dow_ticks)
@@ -195,7 +143,7 @@ if tick_type == 'day_of_week':
 elif tick_type == 'hour':
     if max_hour <= min_hour:  # last minute catch-all
         print(f'||| WARNING |||\nmax hour {max_hour} should be > min hour {min_hour}')
-        min_hour, max_hour = 0, HOURS_PER_DAY
+        min_hour, max_hour = 0, constants.HOURS_PER_DAY
     hour_step_size = 1
     # hour_step_size = 3
     # hour_step_size = 6
@@ -203,68 +151,13 @@ elif tick_type == 'hour':
     # hour_ticks = list(range(min_hour * 60 * 60, (max_hour + 1) * 60 * 60, 60 * 60))
     # hour_ticks = [*list(range(min_hour * 60 * 60, (max_hour + 1) * 60 * 60, 60 * 60))] * PLOT_ROW_SIZE
     hour_ticks = list(range(
-        min_hour * SECONDS_PER_HOUR,
-        ((max_hour * PLOT_ROW_SIZE) + 1) * SECONDS_PER_HOUR,
-        hour_step_size * SECONDS_PER_HOUR
+        min_hour * constants.SECONDS_PER_HOUR,
+        ((max_hour * PLOT_ROW_SIZE) + 1) * constants.SECONDS_PER_HOUR,
+        hour_step_size * constants.SECONDS_PER_HOUR
     ))
-    hour_tick_labels = [util.convert_num_seconds_to_time_of_day(x) for x in hour_ticks]# * PLOT_ROW_SIZE
+    hour_tick_labels = [util.convert_num_seconds_to_time_of_day(x) for x in hour_ticks]
     ax.set_xticks(hour_ticks)
     ax.set_xticklabels(hour_tick_labels)
 # plt.rcParams.update({'font.size': 12})
 plt.legend()
 plt.show()
-
-
-
-
-
-
-
-
-
-
-# %%
-# %%
-# %%
-n = 0
-# %% ARTISTIC LIBERTY ASSISTER
-my_artistic_date = pd.date_range(BIRTHDAY, dt.date(2022, 12, 24))[n]
-fig, ax = plt.subplots(
-    figsize=(20, 0.8 * 2 * 1)
-)
-for ET in df['type'].unique():
-    # define the "event data frame", used for plotting events of a certain color
-    edf = df[
-        (df['date'] == my_artistic_date) &
-        (df['type'] == ET)
-    ].sort_values('start', ascending=False)
-    if edf.shape[0] == 0:  # don't attempt to plot if there were no events of this type on this day
-        continue
-    for x in ['start', 'end']:
-        edf[f'{x}_time'] = (
-            edf[x] - edf['start'].apply(lambda d: dt.datetime(d.year, d.month, d.day))
-        ).apply(lambda d: d.seconds)
-    plt.barh(
-        y=edf['start'].apply(lambda d: util.my_date_conversion(d).strftime('%Y-%m-%d')),
-        width=edf['duration'],
-        # height=0.8,
-        left=edf['start_time'],
-        label=ET,
-        color=EVENT_COLOR_DICT[ET.lower()],
-        alpha=0.5
-    )
-hour_step_size = 1
-hour_ticks = list(range(0, (24 + 1) * SECONDS_PER_HOUR, hour_step_size * SECONDS_PER_HOUR))
-hour_tick_labels = [util.convert_num_seconds_to_time_of_day(x) for x in hour_ticks]# * PLOT_ROW_SIZE
-ax.set_xticks(hour_ticks)
-ax.set_xticklabels(hour_tick_labels)
-print(df[df['date'] == my_artistic_date][['type', 'start', 'end']].sort_values('start'))
-n += 1
-plt.legend()
-plt.show()
-# %%
-# %%
-# %%
-# %%
-# %%
-# %%
