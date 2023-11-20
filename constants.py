@@ -8,7 +8,7 @@ SECONDS_PER_HOUR = 60 * 60
 HOURS_PER_DAY = 24
 
 # when interspersing events, if fewer minutes than this are between the events, do not insert an event between them
-EXTRAPOLATION_MINUTE_THRESHOLD = 15
+EXTRAPOLATION_MINUTE_THRESHOLD = 30
 
 # the buffer to place between events, when extrapolating new ones
 EXTRAPOLATION_MINUTE_BUFFER = 5
