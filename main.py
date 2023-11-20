@@ -1,7 +1,11 @@
 # TODO (2023-11-15)
 # * fill in missing "sleep" events
 # * get the plot to show dates in order
-# * re-organize the plot to show, for instance, 52 columns of 7 days worth of data; or one month; or something else etc.
+# TODO (2023-11-19)
+# * add birth event
+# * handle overlapping events in aesthetically pleasing way
+# * define color pallets (ask J & A)
+# * make alternative formats for y-axis ticks (e.g. "Nov 2" instead of YYYY-MM-DD)
 
 import datetime as dt
 import matplotlib.pyplot as plt
@@ -24,33 +28,65 @@ EVENT_COLOR_DICT = {
     'indoor play': 'purple',
     'outdoor play': 'magenta'
 }
+BIRTHDAY = dt.date(2022, 11, 2)
+BIRTHDAY_DT = dt.datetime(BIRTHDAY.year, BIRTHDAY.month, BIRTHDAY.day)
+SECONDS_PER_HOUR = 60 * 60
 
-df = util.load_data()
+# %%
+DF_ORIG = util.load_data()
+df = DF_ORIG.copy(deep=True)
 MINIMUM_DURATION = 5.0 * 60.0  # five minutes
 df, event_column_dict = util.process_raw_data(df, time_unit='seconds', minimum_duration=MINIMUM_DURATION)
 
+# %% plot prep
+NUM_WEEKS_TO_PLOT = 10
 plot_date_filters = [
-    # dt.datetime(2023, 11, 2), dt.datetime(2023, 11, 5)
+    BIRTHDAY_DT, BIRTHDAY_DT + dt.timedelta(days=7 * NUM_WEEKS_TO_PLOT)
     # dt.datetime(2022, 11, 2), dt.datetime(2022, 12, 3)
-    dt.datetime(2023, 1, 1),
-    dt.datetime(2023, 6, 1)
+    # dt.datetime(2023, 1, 1),
+    # dt.datetime(2023, 1, 15)
+    # dt.datetime(2023, 6, 1)
 ]
 
 # minimum and maximum hours of the day covered by the data. used to bound the plot
 min_hour = 24
 max_hour = 0
 
-fig, ax = plt.subplots(figsize=(30, 50))
-for ET in df['type'].unique():#['Sleep', 'Feed']:
-    # "event data frame"
-    edf = df[(df['start'] >= plot_date_filters[0]) & (df['start'] < plot_date_filters[1])].sort_values('start', ascending=False)
-    edf = edf[edf['type'] == ET].rename(columns=event_column_dict[ET])
-    edf['start_date'] = edf['start'].apply(lambda d: d.date())
-    edf['end_date'] = edf['end'].apply(lambda d: d.date())
+# number of days to be included in a row
+PLOT_ROW_SIZE = 7
+# PLOT_ROW_SIZE = 1
+df['days_from_bday'] = (df['date'] - BIRTHDAY).apply(lambda d: int(d.days))
+df['col_num'] = (df['days_from_bday'] / PLOT_ROW_SIZE).astype(int)
+df['row_num'] = df['days_from_bday'] - df['col_num'] * 7
 
-    # calculate start/end time as seconds from midnight
-    edf['start_time'] = (edf['start'] - edf['start'].apply(lambda d: dt.datetime(d.year, d.month, d.day))).apply(lambda d: d.seconds)
-    edf['end_time'] = (edf['end'] - edf['start'].apply(lambda d: dt.datetime(d.year, d.month, d.day))).apply(lambda d: d.seconds)
+BAR_HEIGHT = 0.8
+
+# %%  T H E   P L O T
+fig, ax = plt.subplots(
+    # figsize=(30, 50)
+    figsize=(20, BAR_HEIGHT * 2 * NUM_WEEKS_TO_PLOT)
+)
+for ET in df['type'].unique():#['Sleep', 'Feed']:
+    # define the "event data frame", used for plotting events of a certain color
+    edf = df[
+        (df['start'] >= plot_date_filters[0]) &
+        (df['start'] < plot_date_filters[1]) &
+        (df['type'] == ET)
+    ].sort_values('start', ascending=False)
+    edf = edf.rename(columns=event_column_dict[ET])  # TODO: maybe remove this?
+    if edf.shape[0] == 0:
+        continue
+
+    for x in ['start', 'end']:
+        # calculate start/end time as seconds from midnight
+        edf[f'{x}_time'] = (
+            edf[x] - edf['start'].apply(lambda d: dt.datetime(d.year, d.month, d.day))
+        ).apply(lambda d: d.seconds)
+        # modify the start and end times to place multiple days on a row, by adding the number of
+        #  seconds in a day multiplied by the number of day it is in the row. For instance, if
+        #  we wanted to fit 7 days on a row, then we would add 7 * (24 * 60 * 60) seconds to the
+        #  times for each event on that day
+        edf[f'{x}_time'] += (edf['row_num'] * 60 * 60 * 24)
 
     try:
         # TODO: change this to a conditional that pre-selects out the NaT values
@@ -67,20 +103,51 @@ for ET in df['type'].unique():#['Sleep', 'Feed']:
         )
     except:
         pass
+    # plot bars
     plt.barh(
-        y=edf['start'].apply(lambda d: d.date().strftime('%Y-%m-%d')),
+        y=(
+            edf['start'].apply(util.my_date_conversion) -
+            edf['row_num'].apply(lambda d: dt.timedelta(days=d))
+        ).apply(lambda d: d.strftime('%Y-%m-%d')),
+        # y=edf['start'].apply(lambda d: d.date().strftime('%Y-%m-%d')),
         width=edf['duration'],
-        # height=
+        height=BAR_HEIGHT,
         left=edf['start_time'],
         label=ET,
         color=EVENT_COLOR_DICT[ET.lower()],
         alpha=0.5
     )
 
-if max_hour <= min_hour:  # last minute catch-all
-    min_hour, max_hour = 0, 24
-hour_ticks = list(range(min_hour * 60 * 60, (max_hour + 1) * 60 * 60, 60 * 60))
-ax.set_xticks(hour_ticks)
-ax.set_xticklabels([util.convert_num_seconds_to_time_of_day(x) for x in hour_ticks])
+tick_type = 'day_of_week'
+if tick_type == 'hour':
+    if max_hour <= min_hour:  # last minute catch-all
+        print(f'||| WARNING |||\nmax hour {max_hour} should be > min hour {min_hour}')
+        min_hour, max_hour = 0, 24
+    # hour_step_size = 1
+    # hour_step_size = 3
+    hour_step_size = 6
+    # hour_step_size = 12
+    # hour_ticks = list(range(min_hour * 60 * 60, (max_hour + 1) * 60 * 60, 60 * 60))
+    # hour_ticks = [*list(range(min_hour * 60 * 60, (max_hour + 1) * 60 * 60, 60 * 60))] * PLOT_ROW_SIZE
+    hour_ticks = list(range(
+        min_hour * SECONDS_PER_HOUR,
+        ((max_hour * PLOT_ROW_SIZE) + 1) * SECONDS_PER_HOUR,
+        hour_step_size * SECONDS_PER_HOUR
+    ))
+    hour_tick_labels = [util.convert_num_seconds_to_time_of_day(x) for x in hour_ticks]# * PLOT_ROW_SIZE
+    ax.set_xticks(hour_ticks)
+    ax.set_xticklabels(hour_tick_labels)
+elif tick_type == 'day_of_week':
+    # this mode should only be used when PLOT_ROW_SIZE == 7
+    dow_ticks = list(range(0, ((24 * PLOT_ROW_SIZE) + 1) * SECONDS_PER_HOUR, 24 * SECONDS_PER_HOUR))
+    # dow_tick_labels = ['Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue']
+    dow_tick_labels = ['Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Monday', 'Tuesday']
+    ax.set_xticks(dow_ticks)
+    ax.set_xticklabels(dow_tick_labels)
+    # OPTIONAL -- vertical lines at the start of each day
+    for day_start_time in dow_ticks:
+        plt.axvline(x=day_start_time, color='k', linestyle=':')
+# plt.rcParams.update({'font.size': 12})
 plt.legend()
 plt.show()
+# %%
