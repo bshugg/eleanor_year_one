@@ -62,13 +62,16 @@ def process_raw_data(df):
     # rename all columns to lowercase
     df = df.rename(columns={c: 'legacy_duration' if c == 'Duration' else c.lower() for c in df.columns})
 
+    # rename all event types to lowercase
+    df['type'] = df['type'].apply(lambda x: x.lower())
+
     # remove event types that won't be covered
     df = df[
         ~df['type'].isin([
             # column(s) with very few entries
-            # 'Brush teeth', 'Indoor play', 'Outdoor play',
+            # 'brush teeth', 'indoor play', 'outdoor play',
             # column(s) that don't indicate Eleanor's actions
-            'Pump'
+            'pump'
         ])
     ]
 
@@ -81,18 +84,18 @@ def process_raw_data(df):
 
     # create better column names for each type
     new_column_name_dict_list = {
-        'Bath': {},
-        'Brush teeth': {},
-        'Diaper': {'legacy_duration': 'color', 'start condition': 'consistency', 'start location': 'issues', 'end condition': 'diaper contents'},
-        'Feed': {'start condition': 'feed type', 'start location': 'delivery', 'end condition': 'amount'},
-        'Indoor play': {},
-        'Meds': {'start condition': 'amount', 'start location': 'name'},
-        'Outdoor play': {},
-        'Pump': {'start condition': 'amount'},
-        'Skin to skin': {},
-        'Sleep': {'start location': 'location'},
-        'Solids': {'start condition': 'solids consumed', 'end condition': 'opinion'},
-        'Tummy time': {},
+        'bath': {},
+        'brush teeth': {},
+        'diaper': {'legacy_duration': 'color', 'start condition': 'consistency', 'start location': 'issues', 'end condition': 'diaper contents'},
+        'feed': {'start condition': 'feed type', 'start location': 'delivery', 'end condition': 'amount'},
+        'indoor play': {},
+        'meds': {'start condition': 'amount', 'start location': 'name'},
+        'outdoor play': {},
+        'pump': {'start condition': 'amount'},
+        'skin to skin': {},
+        'sleep': {'start location': 'location'},
+        'solids': {'start condition': 'solids consumed', 'end condition': 'opinion'},
+        'tummy time': {},
     }
     event_column_dict = {}
     default_dict = {c: c for c in df.columns.tolist()}#['type', 'start', 'end', 'legacy_duration', 'start condition', 'start location', 'end condition', 'notes']
@@ -127,10 +130,20 @@ def split_multi_day_events(df):
     for row in rows_to_add:
         df.loc[df.shape[0]] = row
     df = df.drop(rows_to_drop)
-    # now that each event occurs on the same calendar date, add a "date" column
-    df = df.assign(date=df['start'].apply(lambda d: my_date_conversion(d).date()))
     return df
 
+def calculate_date_column(df):
+    if 'date' in df.columns:
+        df = df.drop(columns=['date'])
+    return df.assign(date=df['start'].apply(lambda d: my_date_conversion(d).date()))
+
+def calculate_time_columns(df):
+    # calculate start/end time as seconds from midnight
+    for x in ['start', 'end']:
+        df[f'{x}_time'] = (
+            df[x] - df['start'].apply(lambda d: dt.datetime(d.year, d.month, d.day))
+        ).apply(lambda d: d.seconds)
+    return df
 
 def enhance_duration_column(df, time_unit='seconds', minimum_duration=0.0):
     """Calculate a better duration column, since "duration" in the original data is used for
@@ -143,6 +156,8 @@ def enhance_duration_column(df, time_unit='seconds', minimum_duration=0.0):
         duration value (in the time_unit provided)
     :return: df - processed data
     """
+    if 'duration' in df.columns:
+        df = df.drop(columns=['duration'])
     time_unit = 'seconds'
     if time_unit == 'seconds':
         time_scale = 1.0
