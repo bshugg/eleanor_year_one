@@ -66,7 +66,7 @@ def process_raw_data(df, time_unit='seconds', minimum_duration=0.0):
     df = df[
         ~df['type'].isin([
             # column(s) with very few entries
-            'Brush teeth', 'Indoor play', 'Outdoor play',
+            # 'Brush teeth', 'Indoor play', 'Outdoor play',
             # column(s) that don't indicate Eleanor's actions
             'Pump'
         ])
