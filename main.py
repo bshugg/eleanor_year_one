@@ -2,11 +2,9 @@
 # * fill in missing "sleep" events
 # * get the plot to show dates in order
 # TODO (2023-11-19)
-# * add birth event
-# * handle overlapping events in aesthetically pleasing way
+# * handle overlapping events (in aesthetically pleasing way or by removing them)
 # * define color pallets (ask J & A)
 # * make alternative formats for y-axis ticks (e.g. "Nov 2" instead of YYYY-MM-DD)
-# * consider removing the min_hour/max_hour stuff
 # TODO (2023-11-20)
 # * save plots in NEW output folder
 # * share a version of plot with and without extrapolations with J&A
@@ -52,7 +50,7 @@ df = df[[
 
 # %% plot prep
 BAR_HEIGHT = 0.8
-NUM_WEEKS_TO_PLOT = 16
+NUM_WEEKS_TO_PLOT = 52
 plot_date_filters = [constants.BIRTHDAY_DT, constants.BIRTHDAY_DT + dt.timedelta(days=7 * NUM_WEEKS_TO_PLOT)]
 # plot_date_filters = [
 #     constants.BIRTHDAY_DT + dt.timedelta(days=n),
@@ -60,10 +58,6 @@ plot_date_filters = [constants.BIRTHDAY_DT, constants.BIRTHDAY_DT + dt.timedelta
 # ]
 # n += 1
 # date_range = sorted(df[(df['start'] >= plot_date_filters[0]) & (df['start'] < plot_date_filters[1])]['date'].unique())
-
-# minimum and maximum hours of the day covered by the data. used to bound the plot
-min_hour = constants.HOURS_PER_DAY
-max_hour = 0
 
 # number of days to be included in a row
 # PLOT_ROW_SIZE = 7
@@ -101,31 +95,15 @@ for ET in ['diaper', 'feed', 'sleep', 'birth', 'skin to skin', 'meds', 'bath', '
         #   7 * the number of seconds in a day
         edf[f'{x}_time'] += (edf['row_num'] * constants.HOURS_PER_DAY * constants.SECONDS_PER_HOUR)
 
-    try:
-        # TODO: change this to a conditional that pre-selects out the NaT values
-        # TODO: find out why there are NaT values
-        min_hour = min(
-            min_hour,
-            time.gmtime(edf['start_time'].astype(int).min())[3],
-            time.gmtime(edf['end_time'].astype(int).min())[3]
-        )
-        max_hour = max(
-            max_hour,
-            time.gmtime(edf['start_time'].astype(int).max())[3],
-            time.gmtime(edf['end_time'].astype(int).max())[3]
-        )
-    except:
-        pass
     # plot bars
     plt.barh(
         y=(
             edf['start'].apply(util.my_date_conversion) -
             edf['row_num'].apply(lambda d: dt.timedelta(days=d))
-        ).apply(lambda d: d.strftime('%Y-%m-%d')),
-        # y=edf['start'].apply(lambda d: d.date().strftime('%Y-%m-%d')),
-        width=edf['duration'],
+        ).apply(lambda d: d.strftime('%Y-%m-%d')).values.reshape(len(edf)),
+        width=edf['duration'].values.reshape(len(edf)),
         height=BAR_HEIGHT,
-        left=edf['start_time'],
+        left=edf['start_time'].values.reshape(len(edf)),
         label=ET,
         color=EVENT_COLOR_DICT[ET.lower()],
         alpha=0.5
@@ -148,11 +126,6 @@ if tick_type == 'day_of_week':
         plt.axvline(x=day_start_time, color='k', linestyle=':')
 elif tick_type == 'hour':
     hour_step_size = 1
-    # hour_step_size = 3
-    # hour_step_size = 6
-    # hour_step_size = 12
-    # hour_ticks = list(range(min_hour * 60 * 60, (max_hour + 1) * 60 * 60, 60 * 60))
-    # hour_ticks = [*list(range(min_hour * 60 * 60, (max_hour + 1) * 60 * 60, 60 * 60))] * PLOT_ROW_SIZE
     hour_ticks = list(range(
         0, ((constants.HOURS_PER_DAY * PLOT_ROW_SIZE) + 1) * constants.SECONDS_PER_HOUR,
         hour_step_size * constants.SECONDS_PER_HOUR

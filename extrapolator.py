@@ -25,15 +25,13 @@ def combine_extrapolations_with_dataframe(df, extrapolations):
 
 
 def extrapolate(df):
-    """Extrapolates where sleep events would be, since J&A did not record all of them.
-    Two types of sleep events are extrapolated in this function:
-    - sleeping events beginning/ending at midnight (i.e. sleeping through the night), which are not recorded at all
-    - sleeping events during the day (naps), which are not recorded from 2022-11-02 to 2022-12-23 (inclusive).
-        These are interspersed between all other recorded events on those days (given enough space to do so)
-    """
+    """Extrapolates where sleep events would be, since J&A did not record all of them prior to 2022-12-24.
+    These are interspersed between all other recorded events on those days (given enough space to do so).
+    Also creates a "birth" event at 2022-11-02 12:48 PM."""
     df = add_birth_event(df)
     extrapolations = []
-    for d in sorted(df['date'].unique()):
+    # for dates before J&A began recording sleep events, intersperse sleep events between all other events
+    for d in sorted(filter(lambda d: d < constants.FIRST_DATE_WITH_SLEEP_EVENTS, df['date'].unique())):
         ddf = df[df['date'] == d].sort_values('start')
         # for every day, add sleep events at the beginning and end of the day, since they were not recorded by J&A
         first_event = ddf['start'].min()
@@ -45,7 +43,7 @@ def extrapolate(df):
             extrapolations.append(format_extrapolation(
                 dt.datetime(first_event.year, first_event.month, first_event.day, 0, 0, 0),
                 dt.datetime(first_event.year, first_event.month, first_event.day, first_event.hour, first_event.minute, 0)
-                  - dt.timedelta(minutes=constants.EXTRAPOLATION_MINUTE_BUFFER),
+                - dt.timedelta(minutes=constants.EXTRAPOLATION_MINUTE_BUFFER),
                 event_type='sleep'
             ))
 
@@ -53,22 +51,19 @@ def extrapolate(df):
         if not (last_event.hour == 23 and last_event.minute >= (60 - constants.EXTRAPOLATION_MINUTE_THRESHOLD)):
             extrapolations.append(format_extrapolation(
                 dt.datetime(last_event.year, last_event.month, last_event.day, last_event.hour, last_event.minute, 0)
-                  + dt.timedelta(minutes=constants.EXTRAPOLATION_MINUTE_BUFFER),
+                + dt.timedelta(minutes=constants.EXTRAPOLATION_MINUTE_BUFFER),
                 dt.datetime(last_event.year, last_event.month, last_event.day, 23, 59, 59),
                 event_type='sleep'
             ))
 
-        # for dates before J&A began recording sleep events, intersperse sleep events between all other events
-        if d < constants.FIRST_DATE_WITH_SLEEP_EVENTS:
-            for idx in range(ddf.shape[0] - 1):
-                if (
-                    ddf.iloc[idx + 1]['start_time'] - ddf.iloc[idx]['end_time']
-                ) > constants.EXTRAPOLATION_MINUTE_THRESHOLD * 60:
-                    extrapolations.append(format_extrapolation(
-                        ddf.iloc[idx]['end'] + dt.timedelta(minutes=constants.EXTRAPOLATION_MINUTE_BUFFER),
-                        ddf.iloc[idx + 1]['start'] - dt.timedelta(minutes=constants.EXTRAPOLATION_MINUTE_BUFFER),
-                        event_type='sleep'
-                    ))
-
+        for idx in range(ddf.shape[0] - 1):
+            if (
+                ddf.iloc[idx + 1]['start_time'] - ddf.iloc[idx]['end_time']
+            ) > constants.EXTRAPOLATION_MINUTE_THRESHOLD * 60:
+                extrapolations.append(format_extrapolation(
+                    ddf.iloc[idx]['end'] + dt.timedelta(minutes=constants.EXTRAPOLATION_MINUTE_BUFFER),
+                    ddf.iloc[idx + 1]['start'] - dt.timedelta(minutes=constants.EXTRAPOLATION_MINUTE_BUFFER),
+                    event_type='sleep'
+                ))
     df = combine_extrapolations_with_dataframe(df, extrapolations)
     return df

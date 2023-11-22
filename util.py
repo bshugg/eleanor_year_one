@@ -7,7 +7,18 @@ import time
 
 def load_data():
     """Loads source data from local directory."""
-    return pd.read_csv(os.getcwd() + "\9df3f148-2d4f-4286-b0db-cc3e0b180668.csv")
+    for data_path in [
+        os.getcwd(),
+        'H:\My Drive\Projects\eleanor_year_one',
+    ]:
+        try:
+            return pd.read_csv(data_path + "\9df3f148-2d4f-4286-b0db-cc3e0b180668.csv")
+        except Exception:
+            pass
+    raise Exception(
+        f'file "9df3f148-2d4f-4286-b0db-cc3e0b180668.csv" not found in directories: ' + 
+        ', '.join(data_path)
+    )
 
 
 def my_date_conversion(d):
@@ -116,22 +127,22 @@ def split_multi_day_events(df):
     and the other from
         2023-07-02 00:00:00 -> 2023-07-02 00:10:00
     and finally, the old row will be deleted."""
-    rows_to_drop = []
-    rows_to_add = []
+    new_rows = []
     for idx, row in df.iterrows():
-        if row['start'].date() != row['end'].date():
+        if row['start'].date() == row['end'].date():
+            new_rows.append(row)
+        else:
             row1 = row.copy(deep=True)
             row1['end'] = dt.datetime(row['start'].year, row['start'].month, row['start'].day, 23, 59, 59)
             row2 = row.copy(deep=True)
             row2['start'] = dt.datetime(row['end'].year, row['end'].month, row['end'].day, 0, 0, 0)
-            rows_to_drop.append(idx)
-            rows_to_add.append(row1)
-            rows_to_add.append(row2)
-    for row in rows_to_add:
-        df.loc[df.shape[0]] = row
-    # drop old rows, to prevent duplication
-    df = df.drop(rows_to_drop)
-    return df
+            row2['date'] = dt.date(row['end'].year, row['end'].month, row['end'].day)
+            new_rows.append(row1)
+            new_rows.append(row2)
+    new_df = pd.DataFrame(new_rows, columns=df.columns)
+    # recalculate some columns
+    new_df = update_calculated_columns(new_df)
+    return new_df
 
 
 def calculate_date_column(df):
