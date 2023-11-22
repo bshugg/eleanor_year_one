@@ -30,7 +30,6 @@ def extrapolate(df):
     Also creates a "birth" event at 2022-11-02 12:48 PM."""
     df = add_birth_event(df)
     extrapolations = []
-    # for dates before J&A began recording sleep events, intersperse sleep events between all other events
     for d in sorted(filter(lambda d: d < constants.FIRST_DATE_WITH_SLEEP_EVENTS, df['date'].unique())):
         ddf = df[df['date'] == d].sort_values('start')
         # for every day, add sleep events at the beginning and end of the day, since they were not recorded by J&A
@@ -56,6 +55,7 @@ def extrapolate(df):
                 event_type='sleep'
             ))
 
+        # intersperse sleep events between all other events
         for idx in range(ddf.shape[0] - 1):
             if (
                 ddf.iloc[idx + 1]['start_time'] - ddf.iloc[idx]['end_time']
