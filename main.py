@@ -51,14 +51,10 @@ df = df[[
 # %% plot prep
 BAR_HEIGHT = 0.8
 NUM_WEEKS_TO_PLOT = 52
-plot_date_filters = [constants.BIRTHDAY_DT, constants.BIRTHDAY_DT + dt.timedelta(days=7 * NUM_WEEKS_TO_PLOT)]
-# plot_date_filters = [
-#     constants.BIRTHDAY_DT + dt.timedelta(days=n),
-#     constants.BIRTHDAY_DT + dt.timedelta(days=n + 1)
-# ]
-# n += 1
-# date_range = sorted(df[(df['start'] >= plot_date_filters[0]) & (df['start'] < plot_date_filters[1])]['date'].unique())
-
+plot_date_filters = [
+    constants.BIRTHDAY_DT,
+    constants.BIRTHDAY_DT + dt.timedelta(days=366)
+]
 # number of days to be included in a row
 # PLOT_ROW_SIZE = 7
 PLOT_ROW_SIZE = 1
@@ -77,9 +73,9 @@ for ET in ['diaper', 'feed', 'sleep', 'birth', 'skin to skin', 'meds', 'bath', '
 # for ET in df['type'].unique():
     # define the "event data frame", used for plotting events of a certain color
     edf = df[
-        # (df['date'] == date) &
         (df['start'] >= plot_date_filters[0]) &
         (df['start'] < plot_date_filters[1]) &
+        (df['date'].isin(days_with_overlap)) &
         (df['type'] == ET)
     ].sort_values('start', ascending=False)
     if ET in event_column_dict.keys():
@@ -137,3 +133,30 @@ elif tick_type == 'hour':
 plt.legend()
 plt.show()
 # %%
+# %% find overlapping events
+df = df.sort_values('start')
+days_with_overlap = []
+for idx in range(df.shape[0] - 1):
+    event1_end = df.iloc[idx]['end']
+    event2_start = df.iloc[idx + 1]['start']
+    if event2_start < event1_end:
+        overlap_time = event1_end - event2_start
+        for i in (idx, idx + 1):
+            print('\t'.join(
+                # ' ' if np.isnan(df.iloc[i][c]) else
+                str(df.iloc[i][c]) + ' ' * (max([len(c) for c in df['type'].unique()]) - len(str(df.iloc[i][c])))
+                for c in [
+                    'type', 'start', 'end', 'duration',
+                    'start condition', 'end condition', 'start location'
+                ]
+            ))
+        print('overlap:\t', overlap_time)
+        print('* ' * 75)
+        days_with_overlap.append(df.iloc[idx]['date'])
+        # if idx > 1000:
+        #     break
+print(len(days_with_overlap), 'days with overlap')
+# %%
+
+
+
