@@ -3,6 +3,7 @@ import numpy as np
 import os
 import pandas as pd
 import time
+import constants
 
 
 def load_data():
@@ -69,28 +70,29 @@ def process_raw_data(df):
              event_column_dict - dictionary mapping event types to dictionaries that maps names of
               columns in the raw dataframe to more appropriate names
     """
-    # rename all columns to lowercase
-    df = df.rename(columns={c: 'legacy_duration' if c == 'Duration' else c.lower() for c in df.columns})
+    # # rename all columns to lowercase
+    # df = df.rename(columns={c: 'legacy_duration' if c == 'Duration' else c.lower() for c in df.columns})
 
-    # rename all event types to lowercase
-    df['type'] = df['type'].apply(lambda x: x.lower())
+    # # rename all event types to lowercase
+    # df['type'] = df['type'].apply(lambda x: x.lower())
 
-    # remove event types that won't be covered
-    df = df[
-        ~df['type'].isin([
-            # column(s) with very few entries
-            # 'brush teeth', 'indoor play', 'outdoor play',
-            # column(s) that don't indicate the baby's actions
-            'pump'
-        ])
-    ]
+    # # remove event types that won't be covered
+    # df = df[
+    #     ~df['type'].isin([
+    #         # column(s) with very few entries
+    #         # 'brush teeth', 'indoor play', 'outdoor play',
+    #         # column(s) that don't indicate the baby's actions
+    #         'pump'
+    #     ])
+    # ]
 
-    # if events don't have an end time, use the start time to represent it
-    df['end'] = df['end'].fillna(df['start'])
+    # # convert date columns to datetime.datetime objects
+    # df['start'] = df['start'].apply(my_date_conversion)
 
-    # convert date columns to datetime.datetime objects
-    for c in ('start', 'end'):
-        df[c] = df[c].apply(my_date_conversion)
+    # # if events don't have an end time, use the start time to represent it
+    # df['end'] = df['end'].fillna(
+    #     df['start'].apply(lambda d: d + dt.timedelta(minutes=constants.MINIMUM_EVENT_DURATION))
+    # ).apply(my_date_conversion)
 
     # create better column names for each type
     new_column_name_dict_list = {
@@ -160,7 +162,7 @@ def calculate_time_columns(df):
     return df
 
 
-def enhance_duration_column(df, time_unit='seconds', minimum_duration=300.0):
+def enhance_duration_column(df, time_unit='seconds', minimum_duration=constants.MINIMUM_EVENT_DURATION):
     """Calculate a better duration column, since "duration" in the original data is used for
     multiple purposes. The old "duration" column has already been renamed "legacy_duration".
 

@@ -37,6 +37,26 @@ EVENT_COLOR_DICT = {
 # %% load and process raw data
 DF_ORIG = util.load_data()
 df = DF_ORIG.copy(deep=True)
+# %% rename all columns to lowercase
+df = df.rename(columns={c: 'legacy_duration' if c == 'Duration' else c.lower() for c in df.columns})
+# %% rename all event types to lowercase
+df['type'] = df['type'].apply(lambda x: x.lower())
+# %% remove event types that won't be covered
+df = df[
+    ~df['type'].isin([
+        # column(s) with very few entries
+        # 'brush teeth', 'indoor play', 'outdoor play',
+        # column(s) that don't indicate the baby's actions
+        'pump'
+    ])
+]
+# %% convert date columns to datetime.datetime objects
+df['start'] = df['start'].apply(util.my_date_conversion)
+# %% if events don't have an end time, use the start time to represent it
+df['end'] = df['end'].fillna(
+    df['start'].apply(lambda d: d + dt.timedelta(seconds=constants.MINIMUM_EVENT_DURATION))
+).apply(my_date_conversion)
+# %%
 df, event_column_dict = util.process_raw_data(df)
 df = util.update_calculated_columns(df)
 df = util.split_multi_day_events(df)
@@ -137,8 +157,10 @@ plt.show()
 df = df.sort_values('start')
 days_with_overlap = []
 for idx in range(df.shape[0] - 1):
-    event1_end = df.iloc[idx]['end']
-    event2_start = df.iloc[idx + 1]['start']
+    event1 = df.iloc[idx]
+    event2 = df.iloc[idx + 1]
+    event1_end = event1['end']
+    event2_start = event2['start']
     if event2_start < event1_end:
         overlap_time = event1_end - event2_start
         for i in (idx, idx + 1):
@@ -155,6 +177,7 @@ for idx in range(df.shape[0] - 1):
         days_with_overlap.append(df.iloc[idx]['date'])
         # if idx > 1000:
         #     break
+    break
 print(len(days_with_overlap), 'days with overlap')
 # %%
 
