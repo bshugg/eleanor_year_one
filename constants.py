@@ -7,6 +7,8 @@ BIRTHDAY_AND_TIME = dt.datetime(BIRTHDAY.year, BIRTHDAY.month, BIRTHDAY.day, 12,
 SECONDS_PER_HOUR = 60 * 60
 HOURS_PER_DAY = 24
 
+MINIMUM_EVENT_DURATION = 300.0
+
 # when interspersing events, if fewer minutes than this are between the events, do not insert an event between them
 EXTRAPOLATION_MINUTE_THRESHOLD = 30
 
