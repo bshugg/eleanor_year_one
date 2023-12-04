@@ -55,7 +55,7 @@ df['start'] = df['start'].apply(util.my_date_conversion)
 # %% if events don't have an end time, use the start time to represent it
 df['end'] = df['end'].fillna(
     df['start'].apply(lambda d: d + dt.timedelta(seconds=constants.MINIMUM_EVENT_DURATION))
-).apply(my_date_conversion)
+).apply(util.my_date_conversion)
 # %%
 df, event_column_dict = util.process_raw_data(df)
 df = util.update_calculated_columns(df)
