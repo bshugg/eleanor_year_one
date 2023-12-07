@@ -3,6 +3,7 @@ import datetime as dt
 BIRTHDAY = dt.date(2022, 11, 2)
 BIRTHDAY_DT = dt.datetime(BIRTHDAY.year, BIRTHDAY.month, BIRTHDAY.day)
 BIRTHDAY_AND_TIME = dt.datetime(BIRTHDAY.year, BIRTHDAY.month, BIRTHDAY.day, 12, 48, 00)
+BIRTH_EVENT_DURATION = 60  # (minutes)
 
 SECONDS_PER_HOUR = 60 * 60
 HOURS_PER_DAY = 24
