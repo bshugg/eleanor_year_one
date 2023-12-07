@@ -89,6 +89,8 @@ fig, ax = plt.subplots(
     # figsize=(30, 50)
     figsize=(20, BAR_HEIGHT * 2 * NUM_WEEKS_TO_PLOT)
 )
+# import plotly.express as px
+# fig = px.bar(df, orientation='h')
 # for date in date_range:
 for ET in ['sleep', 'diaper', 'feed', 'birth', 'skin to skin', 'meds', 'bath', 'outdoor play', 'tummy time', 'indoor play', 'solids', 'brush teeth']:
 # for ET in df['type'].unique():
@@ -187,9 +189,6 @@ for idx in range(df.shape[0] - 1):
         print('overlap:\t', overlap_time)
         print('* ' * 75)
         days_with_overlap.append(df.iloc[idx]['date'])
-        # if idx > 1000:
-        #     break
-    break
 print(len(days_with_overlap), 'days with overlap')
 # %%
 
