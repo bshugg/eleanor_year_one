@@ -34,6 +34,8 @@ def my_date_conversion(d):
         return pd.to_datetime(d)
     elif isinstance(d, np.datetime64):
         return dt.datetime.utcfromtimestamp(d.tolist() / 1e9)
+    elif isinstance(d, int):
+        return my_date_conversion(pd.to_datetime(d))
     elif isinstance(d, str):
         for date_format in [
             '%Y-%m-%d %H:%M',
