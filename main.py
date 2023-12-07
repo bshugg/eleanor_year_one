@@ -13,6 +13,7 @@
 import datetime as dt
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import pandas as pd
 import time
 import util
@@ -55,7 +56,7 @@ df['start'] = df['start'].apply(util.my_date_conversion)
 # %% if events don't have an end time, use the start time to represent it
 df['end'] = df['end'].fillna(
     df['start'].apply(lambda d: d + dt.timedelta(seconds=constants.MINIMUM_EVENT_DURATION))
-).apply(my_date_conversion)
+).apply(util.my_date_conversion)
 # %%
 df, event_column_dict = util.process_raw_data(df)
 df = util.update_calculated_columns(df)
@@ -88,14 +89,16 @@ fig, ax = plt.subplots(
     # figsize=(30, 50)
     figsize=(20, BAR_HEIGHT * 2 * NUM_WEEKS_TO_PLOT)
 )
+# import plotly.express as px
+# fig = px.bar(df, orientation='h')
 # for date in date_range:
-for ET in ['diaper', 'feed', 'sleep', 'birth', 'skin to skin', 'meds', 'bath', 'outdoor play', 'tummy time', 'indoor play', 'solids', 'brush teeth']:
+for ET in ['sleep', 'diaper', 'feed', 'birth', 'skin to skin', 'meds', 'bath', 'outdoor play', 'tummy time', 'indoor play', 'solids', 'brush teeth']:
 # for ET in df['type'].unique():
     # define the "event data frame", used for plotting events of a certain color
     edf = df[
         (df['start'] >= plot_date_filters[0]) &
         (df['start'] < plot_date_filters[1]) &
-        (df['date'].isin(days_with_overlap)) &
+        # (df['date'].isin(days_with_overlap)) &
         (df['type'] == ET)
     ].sort_values('start', ascending=False)
     if ET in event_column_dict.keys():
@@ -122,7 +125,7 @@ for ET in ['diaper', 'feed', 'sleep', 'birth', 'skin to skin', 'meds', 'bath', '
         left=edf['start_time'].values.reshape(len(edf)),
         label=ET,
         color=EVENT_COLOR_DICT[ET.lower()],
-        alpha=0.5
+        # alpha=0.5
     )
 
 # tick_type = 'day_of_week'
@@ -152,6 +155,17 @@ elif tick_type == 'hour':
 # plt.rcParams.update({'font.size': 12})
 plt.legend()
 plt.show()
+# file_format = 'png'
+# file_format = 'svg'
+file_format = 'pdf'
+plot_file_name = "{0}\output\{1}.{2}".format(
+    os.getcwd(),
+    dt.datetime.now().strftime('%Y%m%d_%H%M%S'),
+    file_format
+)
+plt.savefig(plot_file_name, format=file_format)
+print(f"plot saved to '{plot_file_name}'")
+
 # %%
 # %% find overlapping events
 df = df.sort_values('start')
@@ -175,9 +189,6 @@ for idx in range(df.shape[0] - 1):
         print('overlap:\t', overlap_time)
         print('* ' * 75)
         days_with_overlap.append(df.iloc[idx]['date'])
-        # if idx > 1000:
-        #     break
-    break
 print(len(days_with_overlap), 'days with overlap')
 # %%
 
