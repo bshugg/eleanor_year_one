@@ -1,13 +1,11 @@
 # TODO (2023-11-15)
-# * fill in missing "sleep" events
 # * get the plot to show dates in order
 # TODO (2023-11-19)
 # * handle overlapping events (in aesthetically pleasing way or by removing them)
 # * define color pallets (ask J & A)
 # * make alternative formats for y-axis ticks (e.g. "Nov 2" instead of YYYY-MM-DD)
-# TODO (2023-11-20)
-# * save plots in NEW output folder
-# * share a version of plot with and without extrapolations with J&A
+# TODO (2023-12-07)
+# * try better plotting packages
 # TODO remove indoor/outdoor
 # TODO: set pumps to not interrupt extrapolated sleeps
 
@@ -84,10 +82,10 @@ df['col_num'] = (df['days_from_bday'] / PLOT_ROW_SIZE).astype(int)
 df['row_num'] = df['days_from_bday'] - df['col_num'] * PLOT_ROW_SIZE
 # df[['date', 'days_from_bday', 'col_num', 'row_num']].drop_duplicates().head(20)
 
-# %%  T H E   P L O T
+# %%  T H E   P L O T (Matplotlib)
 fig, ax = plt.subplots(
     # figsize=(30, 50)
-    figsize=(20, BAR_HEIGHT * 2 * NUM_WEEKS_TO_PLOT)
+    figsize=(35, BAR_HEIGHT * 2 * NUM_WEEKS_TO_PLOT)
 )
 # import plotly.express as px
 # fig = px.bar(df, orientation='h')
@@ -165,6 +163,20 @@ plot_file_name = "{0}\output\{1}.{2}".format(
 )
 plt.savefig(plot_file_name, format=file_format)
 print(f"plot saved to '{plot_file_name}'")
+
+# %%  T H E   P L O T (plotly)
+import plotly.express as px
+fig = px.timeline(
+    df[df['date'] == df['date'].min()],
+    x_start='start_time',
+    x_end='end_time',
+    y='type'
+)
+# fig.update_yaxes(autorange='reversed')
+fig.show()
+# %%
+# %%
+# %%
 
 # %%
 # %% find overlapping events

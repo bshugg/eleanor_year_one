@@ -3,3 +3,4 @@
 __pycache__/
 laptop_sandbox.ipynb
 *.css
+output/
