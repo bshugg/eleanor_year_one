@@ -2,12 +2,11 @@
 # * get the plot to show dates in order
 # TODO (2023-11-19)
 # * handle overlapping events (in aesthetically pleasing way or by removing them)
-# * define color pallets (ask J & A)
 # * make alternative formats for y-axis ticks (e.g. "Nov 2" instead of YYYY-MM-DD)
 # TODO (2023-12-07)
 # * try better plotting packages
-# TODO remove indoor/outdoor
-# TODO: set pumps to not interrupt extrapolated sleeps
+# TODO (2024-01-12)
+# TODO: rigorously test that pumps do not interrupt extrapolated sleeps
 
 # %% imports
 import datetime as dt
@@ -41,14 +40,8 @@ df = DF_ORIG.copy(deep=True)
 df = df.rename(columns={c: 'legacy_duration' if c == 'Duration' else c.lower() for c in df.columns})
 # %% rename all event types to lowercase
 df['type'] = df['type'].apply(lambda x: x.lower())
-# %% remove event types that won't be covered
-df = df[
-    ~df['type'].isin([
-        # column(s) with very few entries
-        'indoor play', 'outdoor play',
-        # 'brush teeth', 
-    ])
-]
+# %% remove event types that won't be covered due to there being only one occurence of each
+df = df[~df['type'].isin(['indoor play', 'outdoor play'])]
 # %% convert date columns to datetime.datetime objects
 df['start'] = df['start'].apply(util.my_date_conversion)
 # %% if events don't have an end time, use the start time to represent it
