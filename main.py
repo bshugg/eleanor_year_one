@@ -21,17 +21,17 @@ import constants
 import extrapolator
 
 EVENT_COLOR_DICT = {
-    'birth': 'gold',
-    'sleep': 'black',
-    'feed': 'limegreen',
-    'solids': 'forestgreen',
-    'diaper': 'saddlebrown',
-    'meds': 'red',
-    'bath': 'blue',
-    'brush teeth': 'pink',
-    'tummy time': 'yellow',
-    'skin to skin': 'orange',
-    'pump': 'purple'
+    'birth': '#c95a23',
+    'sleep': '#98beb4',
+    'feed': '#f3bd34',
+    'solids': '#723d91',
+    'diaper': '#f69364',
+    'meds': '#779259',
+    'bath': '#47a6c2',
+    'brush teeth': '#f57e83',
+    'tummy time': '#256f7c',
+    'skin to skin': '#892c80',
+    'pump': '#c63e92',
 }
 
 # %% load and process raw data
