@@ -15,11 +15,12 @@ def format_extrapolation(start, end, event_type='sleep'):
 
 
 def add_birth_event(df):
-    return combine_extrapolations_with_dataframe(df, [format_extrapolation(
+    birth_event = format_extrapolation(
         constants.BIRTHDAY_AND_TIME,
         constants.BIRTHDAY_AND_TIME + dt.timedelta(minutes=constants.BIRTH_EVENT_DURATION),
         event_type='birth'
-    )])
+    )
+    return combine_extrapolations_with_dataframe(df, [birth_event])
 
 
 def combine_extrapolations_with_dataframe(df, extrapolations):
