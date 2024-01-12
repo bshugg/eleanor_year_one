@@ -8,6 +8,8 @@
 # TODO (2023-11-20)
 # * save plots in NEW output folder
 # * share a version of plot with and without extrapolations with J&A
+# TODO remove indoor/outdoor
+# TODO: set pumps to not interrupt extrapolated sleeps
 
 # %% imports
 import datetime as dt
@@ -31,8 +33,7 @@ EVENT_COLOR_DICT = {
     'brush teeth': 'pink',
     'tummy time': 'yellow',
     'skin to skin': 'orange',
-    'indoor play': 'purple',
-    'outdoor play': 'magenta'
+    'pump': 'purple'
 }
 
 # %% load and process raw data
@@ -46,9 +47,8 @@ df['type'] = df['type'].apply(lambda x: x.lower())
 df = df[
     ~df['type'].isin([
         # column(s) with very few entries
-        # 'brush teeth', 'indoor play', 'outdoor play',
-        # column(s) that don't indicate the baby's actions
-        'pump'
+        'indoor play', 'outdoor play',
+        # 'brush teeth', 
     ])
 ]
 # %% convert date columns to datetime.datetime objects
@@ -91,8 +91,8 @@ fig, ax = plt.subplots(
 )
 # import plotly.express as px
 # fig = px.bar(df, orientation='h')
-# for date in date_range:
-for ET in ['sleep', 'diaper', 'feed', 'birth', 'skin to skin', 'meds', 'bath', 'outdoor play', 'tummy time', 'indoor play', 'solids', 'brush teeth']:
+special_sorted_columns = ['sleep', 'diaper', 'feed']
+for ET in special_sorted_columns + list(filter(lambda c: c not in special_sorted_columns, df['type'].unique())):
 # for ET in df['type'].unique():
     # define the "event data frame", used for plotting events of a certain color
     edf = df[
