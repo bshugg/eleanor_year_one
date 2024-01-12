@@ -36,7 +36,12 @@ def extrapolate(df):
     df = add_birth_event(df)
     extrapolations = []
     for d in sorted(filter(lambda d: d < constants.FIRST_DATE_WITH_SLEEP_EVENTS, df['date'].unique())):
-        ddf = df[df['date'] == d].sort_values('start')
+        # "ddf" = date dataframe (contains every event on a date d)
+        ddf = df[
+            (df['date'] == d) &
+            # disregard "pump" events from extrapolation
+            (df['type'] != 'pump')
+        ].sort_values('start')
         # for every day, add sleep events at the beginning and end of the day, since they were not recorded by J&A
         first_event = ddf['start'].min()
         last_event = ddf['end'].max()
