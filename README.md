@@ -1,1 +1,1 @@
-This project will attempt visualize the data of Eleanor Fearn Watssman's first year in an aesthetically pleasing manner.
+This project will attempt visualize the data recorded for a child in their first year in an aesthetically pleasing manner.
